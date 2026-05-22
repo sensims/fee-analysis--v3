@@ -179,26 +179,42 @@ td{padding:6px 10px;border-bottom:1px solid #eef0f4}
         <option value="category">按费用类别</option>
         <option value="budget">按预算科目</option>
       </select>
+      <label>📂 费用类别：</label>
+      <select id="trendCatFilter" onchange="renderTrend()">
+        <option value="all">全部类别</option>
+      </select>
+      <label>📊 预算科目：</label>
+      <select id="trendBudgetFilter" onchange="renderTrend()">
+        <option value="all">全部科目</option>
+      </select>
       <label>📅 分析周期：</label>
       <select id="trendPeriodFilter" onchange="renderTrend()">
         <option value="all">全年(单据1-6月)</option>
         <option value="q1">第一季度(单据1-3月)</option>
         <option value="q2" selected>第二季度(单据4-6月)</option>
       </select>
+      <label>🔢 排序：</label>
+      <select id="trendSortFilter" onchange="onTrendSortChange()">
+        <option value="avgDesc">月均降序 ↓</option>
+        <option value="avgAsc">月均升序 ↑</option>
+        <option value="nameAsc">名称升序 A→Z</option>
+        <option value="nameDesc">名称降序 Z→A</option>
+      </select>
+      <span class="badge" id="trendBadge">加载中...</span>
     </div>
     <div class="chart-box"><canvas id="trendChart"></canvas></div>
       <div class="table-wrap" style="margin-top:20px">
         <table>
           <thead>
             <tr>
-              <th id="trendDimHeader">费用类别</th>
-              <th class="right">单据1月</th>
-              <th class="right">单据2月</th>
-              <th class="right">单据3月</th>
-              <th class="right">单据4月</th>
-              <th class="right">单据5月</th>
-              <th class="right">单据6月</th>
-              <th class="right">月均</th>
+              <th id="trendDimHeader" onclick="sortTrendTable('name')" style="cursor:pointer">费用类别 ↕️</th>
+              <th class="right" onclick="sortTrendTable('m1')" style="cursor:pointer" id="th-trend-m1">单据1月 ↕️</th>
+              <th class="right" onclick="sortTrendTable('m2')" style="cursor:pointer" id="th-trend-m2">单据2月 ↕️</th>
+              <th class="right" onclick="sortTrendTable('m3')" style="cursor:pointer" id="th-trend-m3">单据3月 ↕️</th>
+              <th class="right" onclick="sortTrendTable('m4')" style="cursor:pointer" id="th-trend-m4">单据4月 ↕️</th>
+              <th class="right" onclick="sortTrendTable('m5')" style="cursor:pointer" id="th-trend-m5">单据5月 ↕️</th>
+              <th class="right" onclick="sortTrendTable('m6')" style="cursor:pointer" id="th-trend-m6">单据6月 ↕️</th>
+              <th class="right" onclick="sortTrendTable('avg')" style="cursor:pointer" id="th-trend-avg">月均 ↕️</th>
               <th class="right">趋势</th>
             </tr>
           </thead>
@@ -234,6 +250,7 @@ let summarySheetData = null;  // 存储预算执行汇总的原始数据
 let summaryHeaders = [];  // 存储表头
 let chartInstances = {};
 let sortState = { column: 'default', direction: 'asc' };
+let trendSortState = { column: 'default', direction: 'asc' };
 
 // 上传区域事件绑定
 const uploadArea = document.getElementById('uploadArea');
@@ -784,11 +801,15 @@ function populateFilters() {
   var catFilter = document.getElementById('catFilter');
   var budgetFilter = document.getElementById('budgetFilter');
   var trendStoreFilter = document.getElementById('trendStoreFilter');
+  var trendCatFilter = document.getElementById('trendCatFilter');
+  var trendBudgetFilter = document.getElementById('trendBudgetFilter');
   
   storeFilter.innerHTML = '<option value="all">全部SAP门店</option>';
   catFilter.innerHTML = '<option value="all">全部类别</option>';
   budgetFilter.innerHTML = '<option value="all">全部科目</option>';
   trendStoreFilter.innerHTML = '<option value="all">全部门店</option>';
+  trendCatFilter.innerHTML = '<option value="all">全部类别</option>';
+  trendBudgetFilter.innerHTML = '<option value="all">全部科目</option>';
   
   storeMonthly.forEach(function(s) {
     var opt = document.createElement('option');
@@ -802,14 +823,16 @@ function populateFilters() {
     var opt = document.createElement('option');
     opt.value = c.cat;
     opt.textContent = c.cat;
-    catFilter.appendChild(opt);
+    catFilter.appendChild(opt.cloneNode(true));
+    trendCatFilter.appendChild(opt);
   });
   
   budgetData.forEach(function(b) {
     var opt = document.createElement('option');
     opt.value = b.cat;
     opt.textContent = b.cat;
-    budgetFilter.appendChild(opt);
+    budgetFilter.appendChild(opt.cloneNode(true));
+    trendBudgetFilter.appendChild(opt);
   });
 }
 
@@ -1109,6 +1132,8 @@ function renderTrend() {
   var storeF = document.getElementById('trendStoreFilter').value;
   var dim = document.getElementById('trendDimFilter').value;
   var period = document.getElementById('trendPeriodFilter').value;
+  var catF = document.getElementById('trendCatFilter').value;
+  var budgetF = document.getElementById('trendBudgetFilter').value;
   
   // 更新表头
   document.getElementById('trendDimHeader').textContent = dim === 'category' ? '费用类别' : '预算科目';
@@ -1126,6 +1151,8 @@ function renderTrend() {
   // 筛选数据
   var filtered = detailData.filter(function(d) {
     if (storeF !== 'all' && d.store !== storeF) return false;
+    if (catF !== 'all' && d.category !== catF) return false;
+    if (budgetF !== 'all' && d.budget !== budgetF) return false;
     if (period === 'q1' && (d.month < 1 || d.month > 3)) return false;
     if (period === 'q2' && (d.month < 4 || d.month > 6)) return false;
     return true;
@@ -1153,8 +1180,6 @@ function renderTrend() {
     var avg = validMonths.length > 0 ? validMonths.reduce(function(a, b) { return a + b; }, 0) / validMonths.length : 0;
     
     // ========== 计算环比趋势：本月 vs 上月 ==========
-    // 本月 = 有数据的最后一个月
-    // 上月 = 本月之前的最后一个月（有数据）
     var nonZeroMonths = [];
     monthsToAnalyze.forEach(function(m) {
       if (s['m' + m] > 0) {
@@ -1166,12 +1191,10 @@ function renderTrend() {
     var prevMonthAmt = 0;
     
     if (nonZeroMonths.length >= 1) {
-      // 本月 = 最后一个有数据的月
       currentMonthAmt = nonZeroMonths[nonZeroMonths.length - 1].amount;
     }
     
     if (nonZeroMonths.length >= 2) {
-      // 上月 = 倒数第二个有数据的月
       prevMonthAmt = nonZeroMonths[nonZeroMonths.length - 2].amount;
     }
     
@@ -1187,7 +1210,6 @@ function renderTrend() {
     } else {
       trendIcon = '<span class="trend-neutral">→ 无上期数据</span>';
     }
-    // ========== 环比趋势计算结束 ==========
     
     return { 
       name: s.name,
@@ -1196,13 +1218,86 @@ function renderTrend() {
       avg: avg,
       trendIcon: trendIcon
     };
-  }).sort(function(a, b) { return b.avg - a.avg; });
+  });
+  
+  // ========== 排序逻辑 ==========
+  // 优先使用点击列标题的排序（trendSortState），其次使用下拉框排序
+  if (trendSortState.column && trendSortState.column !== 'default') {
+    rows.sort(function(a, b) {
+      var valA = a[trendSortState.column] || 0;
+      var valB = b[trendSortState.column] || 0;
+      
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return trendSortState.direction === 'asc' ? valA.localeCompare(valB, 'zh') : valB.localeCompare(valA, 'zh');
+      }
+      
+      return trendSortState.direction === 'asc' ? valA - valB : valB - valA;
+    });
+  } else {
+    var sortF = document.getElementById('trendSortFilter').value;
+    if (sortF === 'avgAsc') {
+      rows.sort(function(a, b) { return a.avg - b.avg; });
+    } else if (sortF === 'avgDesc') {
+      rows.sort(function(a, b) { return b.avg - a.avg; });
+    } else if (sortF === 'nameAsc') {
+      rows.sort(function(a, b) { return a.name.localeCompare(b.name, 'zh'); });
+    } else if (sortF === 'nameDesc') {
+      rows.sort(function(a, b) { return b.name.localeCompare(a.name, 'zh'); });
+    }
+  }
+  
+  // 更新统计badge
+  document.getElementById('trendBadge').textContent = '共 ' + rows.length + ' 项 | 门店:' + (storeF === 'all' ? '全部' : storeF) + ' | 类别:' + (catF === 'all' ? '全部' : catF) + ' | 科目:' + (budgetF === 'all' ? '全部' : budgetF);
   
   // 渲染趋势表格
   renderTrendTable(rows, monthsToAnalyze);
   
   // 渲染趋势图表
   renderTrendChart(rows, dim, monthsToAnalyze);
+}
+
+// 趋势排序下拉框变化处理
+function onTrendSortChange() {
+  // 重置列标题排序状态，使用下拉框排序
+  trendSortState = { column: 'default', direction: 'asc' };
+  updateTrendSortIndicators();
+  renderTrend();
+}
+
+// 趋势表格列标题点击排序
+function sortTrendTable(column) {
+  if (trendSortState.column === column) {
+    trendSortState.direction = trendSortState.direction === 'asc' ? 'desc' : 'asc';
+  } else {
+    trendSortState.column = column;
+    trendSortState.direction = 'asc';
+  }
+  
+  // 同步更新排序下拉框
+  var sortSel = document.getElementById('trendSortFilter');
+  sortSel.value = 'none';  // 标记为列标题排序模式
+  
+  updateTrendSortIndicators();
+  renderTrend();
+}
+
+// 更新趋势表头排序指示器
+function updateTrendSortIndicators() {
+  var headers = ['name', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'avg'];
+  
+  headers.forEach(function(h) {
+    var elId = h === 'name' ? 'trendDimHeader' : ('th-trend-' + h);
+    var th = document.getElementById(elId);
+    if (th) {
+      var baseText = th.textContent.replace(/[↑↓↕️]/g, '').trim();
+      
+      if (trendSortState.column === h) {
+        th.textContent = baseText + (trendSortState.direction === 'asc' ? ' ↑' : ' ↓');
+      } else {
+        th.textContent = baseText + ' ↕️';
+      }
+    }
+  });
 }
 
 // 渲染趋势表格
