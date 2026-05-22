@@ -372,6 +372,7 @@ function parseExcelData() {
   var budgetCol = 23;     // 列24：预算科目
   
   // 门店名称标准化函数 - 去除"广州大部广州门店三部"等前缀
+  // 注意：若去除前缀后为空（即原值本身就是前缀），则保留原始值，作为独立门店显示
   function normalizeStoreName(storeName) {
     if (!storeName) return storeName;
     
@@ -388,7 +389,13 @@ function parseExcelData() {
     var normalized = String(storeName);
     for (var p = 0; p < prefixes.length; p++) {
       if (normalized.indexOf(prefixes[p]) === 0) {
-        normalized = normalized.substring(prefixes[p].length);
+        var stripped = normalized.substring(prefixes[p].length);
+        // 若剥离后为空，说明原值本身就是该前缀，保留原始值作为独立门店
+        if (stripped.trim() === '') {
+          normalized = normalized;  // 保持不变，原值整体作为门店名
+        } else {
+          normalized = stripped;
+        }
         break;
       }
     }
