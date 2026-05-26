@@ -92,7 +92,7 @@ body::before {
     radial-gradient(circle at 80% 80%, rgba(129, 140, 248, 0.06) 0%, transparent 50%),
     radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 70%);
   animation: bgFloat 20s ease-in-out infinite;
-  z-: 0;
+  z-index: 0;
 }
 
 @keyframes bgFloat {
@@ -104,7 +104,7 @@ body::before {
 /* ==================== 主容器 ==================== */
 .container {
   position: relative;
-  z-: 1;
+  z-index: 1;
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--space-4xl) var(--space-xl);
@@ -427,7 +427,7 @@ body::before {
   <!-- 版本选择卡片 -->
   <div class="version-grid">
     <!-- PC版卡片 -->
-    <a href="index_电脑版.html" class="version-card pc">
+    <a href="../index_电脑版.html" class="version-card pc">
       <span class="card-icon">🖥️</span>
       <div class="card-label">电脑版</div>
       <h2 class="card-title">电脑PC显示版本</h2>
@@ -447,7 +447,7 @@ body::before {
     </a>
 
     <!-- 手机版卡片 -->
-    <a href="index_Impeccable手机版.html" class="version-card mobile">
+    <a href="../index_Impeccable手机版_v2.html" class="version-card mobile">
       <span class="card-icon">📱</span>
       <div class="card-label">手机版</div>
       <h2 class="card-title">手机专属版本</h2>
@@ -473,8 +473,29 @@ body::before {
       三部SAP门店费用分析系统 · 支持Excel数据导入与多维度分析<br>
       如有问题，请联系 <a href="#">技术支持</a>
     </p>
+    <div style="margin-top:20px;">
+      <button class="btn btn-primary" onclick="resetAllData()" style="padding:10px 24px;font-size:13px;">🔄 重置所有已保存数据</button>
+    </div>
   </div>
 </div>
+
+<script>
+// 重置所有localStorage中的数据（如果有保存的话）
+function resetAllData() {
+  if (!confirm('确定要清除所有本地保存的数据吗？')) {
+    return;
+  }
+  
+  // 清除可能的本地存储
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+    alert('已清除所有本地数据！');
+  } catch(e) {
+    alert('清除数据时出现错误：' + e.message);
+  }
+}
+</script>
 
 </body>
 </html>
